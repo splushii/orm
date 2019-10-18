@@ -241,6 +241,13 @@
         "format": "http-method"
       }
     },
+    "match_header_list": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "http-header-field-value"
+      }
+    },
     "match_regex_list": {
       "type": "array",
       "items": {
@@ -314,6 +321,29 @@
       ],
       "additionalProperties": false
     },
+    "match_header": {
+      "type": "object",
+      "properties": {
+        "begins_with": {"$ref": "#/definitions/match_header_list"},
+        "ends_with": {"$ref": "#/definitions/match_header_list"},
+        "contains": {"$ref": "#/definitions/match_header_list"},
+        "exact": {"$ref": "#/definitions/match_header_list"},
+        "regex": {"$ref": "#/definitions/match_regex_list"},
+        "not": {"$ref": "#/definitions/match_negate"},
+        "ignore_case": {"$ref": "#/definitions/match_ignore_case"},
+        "field": {"$ref": "#/definitions/http_header_field_name"},
+        "exists": {"type": "boolean"}
+      },
+      "anyOf": [
+        {"required": ["field", "begins_with"]},
+        {"required": ["field", "ends_with"]},
+        {"required": ["field", "contains"]},
+        {"required": ["field", "exact"]},
+        {"required": ["field", "regex"]},
+        {"required": ["field", "exists"]}
+      ],
+      "additionalProperties": false
+    },
     "boolean_operator": {
       "type": "array",
       "items": {
@@ -331,6 +361,11 @@
         }, {
           "properties": {
             "method": {"$ref": "#/definitions/match_method"}
+          },
+          "additionalProperties": false
+        }, {
+          "properties": {
+            "header": {"$ref": "#/definitions/match_header"}
           },
           "additionalProperties": false
         }]
