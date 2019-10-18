@@ -422,7 +422,123 @@ def get_all_match_fsms(match_tree, worker_pool=None):
         fsms[match_type] = get_match_fsm(
             match_tree, match_type, worker_pool=worker_pool
         )
+    for match_type in ("header",):
+        keys = get_match_type_keys(match_tree, match_type)
+        fsms[match_type] = {}
+        if keys is not None:
+            for key in keys:
+                fsms[match_type][key] = get_match_fsm_HEADER(
+                    match_tree, match_type, key, worker_pool=worker_pool
+                )
+        print("yeah: {}".format(str(keys)))
+        print("coolio: {}".format(str(fsms[match_type])))
     return fsms
+
+
+def get_match_type_keys(match_tree, match_type):
+    def handle_condition_list(data_list_in, op, negate):
+        # pylint:disable=unused-argument
+        data_list_out = None
+        if isinstance(data_list_in, list):
+            for data in data_list_in:
+                if data is not None:
+                    if data_list_out is None:
+                        data_list_out = []
+                    data_list_out.append(data)
+        return data_list_out
+
+    def handle_match(src, fun, inp, negate):
+        # pylint:disable=unused-argument
+        if src not in ("header",) and src is not match_type:
+            return None
+        return inp["field"]
+
+    func = {
+        "handle_condition_list": handle_condition_list,
+        "handle_match": handle_match,
+    }
+    return parser.traverse_match_tree(func, match_tree)
+
+
+# TODO: RENAME AND REFACTOR INTO get_match_fsm IF POSSIBLE
+# TODO: IF NOT, MAYBE INTO get_keyed_match_fsm
+def get_match_fsm_HEADER(match_tree, match_type, match_key, worker_pool=None):
+    # pylint:disable=too-many-statements
+    if worker_pool is None:
+        worker_pool = concurrent.futures.ProcessPoolExecutor(max_workers=1)
+    alphabet = set(string.printable)
+
+    def handle_condition_list(data_list_in, op, negate):
+        def divide_and_conquer(fsm_list, op):
+            num_items = len(fsm_list)
+            fsm_future1 = None
+            fsm_future2 = None
+            if num_items == 1:
+                return fsm_list[0]
+            elif num_items == 2:
+                fsm_future1 = fsm_list[0]
+                fsm_future2 = fsm_list[1]
+            else:
+                half = num_items // 2
+                fsm_future1 = divide_and_conquer(fsm_list[:half], op)
+                fsm_future2 = divide_and_conquer(fsm_list[half:], op)
+            if fsm_future1 is None and fsm_future2 is None:
+                return None
+            if fsm_future1 is None:
+                return fsm_future2
+            if fsm_future2 is None:
+                return fsm_future1
+            fsm_result1 = fsm_future1.result()
+            fsm_result2 = fsm_future2.result()
+            future = worker_pool.submit(fsm_action_task, op, fsm_result1, fsm_result2)
+            return future
+
+        fsm_future = divide_and_conquer(data_list_in, op)
+        if fsm_future is not None and negate:
+            fsm_result = fsm_future.result()
+            fsm_future = worker_pool.submit(fsm_negate_task, fsm_result)
+        return fsm_future
+
+    def handle_match(src, fun, inp, negate):
+        if src not in ("header",):
+            return None
+        key = inp["field"]
+        if key != match_key:
+            return None
+        if inp.get("ignore_case", False):
+            lego_regex = lego_ignore_case(lego_regex)
+        if fun == "exists":
+            value = ".*"
+        else:
+            value = inp["value"]
+        lego_regex = value if fun in ("regex", "exists") else lego_re_escape(value)
+        if fun == "begins_with":
+            regex = lego_regex + r".*"
+        elif fun == "ends_with":
+            regex = r".*" + lego_regex
+        elif fun == "contains":
+            regex = r".*" + lego_regex + r".*"
+        elif fun in ("exact", "regex", "exists"):
+            regex = lego_regex
+        else:
+            raise ValidateRuleConstraintsException(
+                "Handling of match function " + str(fun) + " not implemented."
+            )
+        future = worker_pool.submit(fsm_parse_regex_task, regex, negate, alphabet)
+        return future
+
+    func = {"handle_condition_list": handle_condition_list}
+    if match_type in ("header",):
+        func["handle_match"] = handle_match
+    else:
+        raise ValidateRuleConstraintsException(
+            "Handling of match type " + str(match_type) + " not implemented."
+        )
+    fsm_future = parser.traverse_match_tree(func, match_tree)
+    if fsm_future is None:
+        return lego.parse(".*").to_fsm(alphabet)
+    fsm_result = fsm_future.result()
+    return fsm_result
 
 
 def get_match_fsm(match_tree, match_type, worker_pool=None):
@@ -499,6 +615,11 @@ def get_match_fsm(match_tree, match_type, worker_pool=None):
 
 def fsms_collide(one, two):
     # TODO: Put the domain under fsms too
+    print(
+        "one keys: {}\ntwo keys: {}".format(
+            one["fsms"]["header"].keys(), two["fsms"]["header"].keys()
+        )
+    )
     return (
         one["domain"] == two["domain"]
         and not one["fsms"]["path"].isdisjoint(two["fsms"]["path"])
