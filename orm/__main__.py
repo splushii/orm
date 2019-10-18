@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 import argparse
 
 import orm.parser as parser
@@ -72,26 +73,26 @@ def main():
     yml_files = parser.list_rules_files(args.orm_rules_path)
     if not yml_files:
         print("ERROR: Found no files using glob: {}".format(args.orm_rules_path))
-        exit(1)
+        sys.exit(1)
 
     if args.globals_path:
         if not validator.validate_globals_file(args.globals_path):
             print("ERROR: Global settings not valid")
-            exit(1)
+            sys.exit(1)
 
     if args.check and args.no_check:
         print("ERROR: --check together with --no-check does not make sense.")
-        exit(1)
+        sys.exit(1)
     if not args.no_check:
         print("Validating ORM rule files...")
         if not validator.validate_rule_files(
             yml_files=yml_files, cache_path=args.cache_path
         ):
             print("ERROR: Not valid")
-            exit(1)
+            sys.exit(1)
     if args.check:
         print("All checks passed.")
-        exit(0)
+        sys.exit(0)
 
     parsed_globals = None
     defaults = None
@@ -110,7 +111,7 @@ def main():
             target=args.test_target,
             verify_certs=(not args.test_target_insecure),
         )
-        exit(0)
+        sys.exit(0)
 
     print("Rendering Varnish config...")
     render_varnish = RenderVarnish(rule_docs=domain_rules, globals_doc=parsed_globals)
