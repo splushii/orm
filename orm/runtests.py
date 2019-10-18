@@ -16,30 +16,33 @@ def run_tests(tests, target, verify_certs=True):
     for test in tests:
         print("Run tests from: {}".format(test["_orm_source_file"]))
         name = test.get("name")
-        method = test["request"].get("method", "GET")
+        req_method = test["request"].get("method", "GET")
         url = test["request"]["url"]
+        headers = test["request"].get("headers", [])
         expect_status = test["expect"].get("status")
         expect_body = test["expect"].get("body", [])
         expect_headers = test["expect"].get("headers", [])
         print("Test: {}".format(name))
 
         url_parsed = urlparse(url)
-        do_target = "{scheme}://{netloc}{path}".format(
+        req_url = "{scheme}://{netloc}{path}".format(
             scheme=url_parsed.scheme, netloc=target, path=url_parsed.path
         )
 
         if url_parsed.query:
-            do_target = "{}?{}".format(do_target, url_parsed.query)
+            req_url = "{}?{}".format(req_url, url_parsed.query)
         if url_parsed.fragment:
-            do_target = "{}#{}".format(do_target, url_parsed.fragment)
+            req_url = "{}#{}".format(req_url, url_parsed.fragment)
 
-        headers = {"Host": url_parsed.netloc}
+        req_headers = {"Host": url_parsed.netloc}
+        for header in headers:
+            req_headers[header["field"]] = header["value"]
 
-        print("request {}: {}".format(method, do_target))
+        print("request {}: {}".format(req_method, req_url))
         r = requests.request(
-            method,
-            do_target,
-            headers=headers,
+            req_method,
+            req_url,
+            headers=req_headers,
             verify=verify_certs,
             allow_redirects=False,
         )
