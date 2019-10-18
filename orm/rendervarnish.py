@@ -391,6 +391,15 @@ class RenderVarnish(RenderOutput):
         vcl_regex = make_vcl_value_regex("method", value, fun, ignore_case)
         return "req.method ~ " + vcl_safe_string(vcl_regex)
 
+    def make_match_header(self, fun, inp):
+        field = inp["field"]
+        if fun == "exists":
+            return "req.http.{}".format(field)
+        value = inp["value"]
+        ignore_case = inp.get("ignore_case", False)
+        vcl_regex = make_vcl_value_regex(field, value, fun, ignore_case)
+        return "req.http.{} ~ ".format(field) + vcl_safe_string(vcl_regex)
+
     def make_match_domain(self, fun, inp):
         if fun == "exact":
             return "req.http.host == " + vcl_safe_string(inp)
@@ -410,6 +419,8 @@ class RenderVarnish(RenderOutput):
             return self.make_match_query(fun, inp)
         if src == "method":
             return self.make_match_method(fun, inp)
+        if src == "header":
+            return self.make_match_header(fun, inp)
         raise ORMInternalRenderException(
             "ERROR: unhandled match source: " + src + ":" + fun + ":" + str(inp)
         )

@@ -85,6 +85,42 @@ def parse_match_values(values_config, value_type):
     return {"not": tree} if is_negation(values_config) else tree
 
 
+def parse_match_keyed_values(keyed_values_config, value_type, value_key):
+    expr_list = []
+    match_functions = [
+        "exists",
+        "exact",
+        "regex",
+        "begins_with",
+        "ends_with",
+        "contains",
+    ]
+    options = [value_key, "not", "ignore_case"]
+    ignore_case = has_ignore_case(keyed_values_config)
+    for match_function in match_functions:
+        if match_function in keyed_values_config:
+            if match_function == "exists":
+                inp = {value_key: keyed_values_config[value_key]}
+                if ignore_case:
+                    inp["ignore_case"] = ignore_case
+                expr_list.append(
+                    create_match_tree_expr(value_type, match_function, inp)
+                )
+            else:
+                for value in keyed_values_config[match_function]:
+                    inp = {value_key: keyed_values_config[value_key], "value": value}
+                    if ignore_case:
+                        inp["ignore_case"] = ignore_case
+                    expr_list.append(
+                        create_match_tree_expr(value_type, match_function, inp)
+                    )
+    for key in keyed_values_config.keys():
+        if key not in match_functions and key not in options:
+            raise ORMInternalParserException("ERROR: unhandled key : " + key)
+    tree = {"or": expr_list}
+    return {"not": tree} if is_negation(keyed_values_config) else tree
+
+
 def parse_match_binary_operator(operator, expressions):
     op = None
     if operator == "any":
@@ -103,6 +139,10 @@ def parse_match_binary_operator(operator, expressions):
             expr_list.append(parse_match_values(expr["query"], "query"))
         elif "method" in expr:
             expr_list.append(parse_match_values(expr["method"], "method"))
+        elif "header" in expr:
+            expr_list.append(
+                parse_match_keyed_values(expr["header"], "header", "field")
+            )
         else:
             raise ORMInternalParserException(
                 "ERROR: unhandled key in: " + str(expr.keys())
