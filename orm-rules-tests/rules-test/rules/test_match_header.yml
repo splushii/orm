@@ -1,0 +1,300 @@
+---
+
+schema_version: 2
+
+rules:
+  - description: Test match header begins_with
+    domains:
+      - test
+    matches:
+      all:
+        - paths:
+            exact:
+              - '/header/begins_with'
+        - header:
+            field: field
+            begins_with:
+              - 'begins'
+    actions:
+      synthetic_response: 'match_header_begins_with'
+
+tests:
+  - name: Test match header begins_with exact
+    request:
+      url: 'https://test/header/begins_with'
+      headers:
+        - field: field
+          value: begins
+    expect:
+      status: 200
+      body:
+        - regex: 'match_header_begins_with'
+
+  - name: Test match header begins_with
+    request:
+      url: 'https://test/header/begins_with'
+      headers:
+        - field: field
+          value: begins_with
+    expect:
+      status: 200
+      body:
+        - regex: 'match_header_begins_with'
+
+  - name: Test match header begins_with wrong
+    request:
+      url: 'https://test/header/begins_with'
+      headers:
+        - field: field
+          value: not_quite_begins
+    expect:  # domain_default backend
+      status: 200
+      body:
+        - regex: 'name=1337'
+
+---
+
+schema_version: 2
+
+rules:
+  - description: Test match header ends_with
+    domains:
+      - test
+    matches:
+      all:
+        - paths:
+            exact:
+              - '/header/ends_with'
+        - header:
+            field: field
+            ends_with:
+              - 'ending'
+    actions:
+      synthetic_response: 'match_header_ends_with'
+
+tests:
+  - name: Test match header ends_with exact
+    request:
+      url: 'https://test/header/ends_with'
+      headers:
+        - field: field
+          value: ending
+    expect:
+      status: 200
+      body:
+        - regex: 'match_header_ends_with'
+
+  - name: Test match header ends_with
+    request:
+      url: 'https://test/header/ends_with'
+      headers:
+        - field: field
+          value: is_ending
+    expect:
+      status: 200
+      body:
+        - regex: 'match_header_ends_with'
+
+  - name: Test match header ends_with wrong
+    request:
+      url: 'https://test/header/ends_with'
+      headers:
+        - field: field
+          value: ending_is_not_the_end
+    expect:  # domain_default backend
+      status: 200
+      body:
+        - regex: 'name=1337'
+
+---
+
+schema_version: 2
+
+rules:
+  - description: Test match header contains
+    domains:
+      - test
+    matches:
+      all:
+        - paths:
+            exact:
+              - '/header/contains'
+        - header:
+            field: field
+            contains:
+              - 'contain'
+    actions:
+      synthetic_response: 'match_header_contains'
+
+tests:
+  - name: Test match header contains exact
+    request:
+      url: 'https://test/header/contains'
+      headers:
+        - field: field
+          value: contain
+    expect:
+      status: 200
+      body:
+        - regex: 'match_header_contains'
+
+  - name: Test match header contains
+    request:
+      url: 'https://test/header/contains'
+      headers:
+        - field: field
+          value: is_containing
+    expect:
+      status: 200
+      body:
+        - regex: 'match_header_contains'
+
+  - name: Test match header contains wrong
+    request:
+      url: 'https://test/header/contains'
+      headers:
+        - field: field
+          value: does_not_CONTAIN_lowercase_CONTAIN
+    expect:  # domain_default backend
+      status: 200
+      body:
+        - regex: 'name=1337'
+
+---
+
+schema_version: 2
+
+rules:
+  - description: Test match header exact
+    domains:
+      - test
+    matches:
+      all:
+        - paths:
+            exact:
+              - '/header/exact'
+        - header:
+            field: field
+            exact:
+              - 'exact'
+    actions:
+      synthetic_response: 'match_header_exact'
+
+tests:
+  - name: Test match header exact
+    request:
+      url: 'https://test/header/exact'
+      headers:
+        - field: field
+          value: exact
+    expect:
+      status: 200
+      body:
+        - regex: 'match_header_exact'
+
+  - name: Test match header exact wrong
+    request:
+      url: 'https://test/header/exact'
+      headers:
+        - field: field
+          value: is_not_exact
+    expect:  # domain_default backend
+      status: 200
+      body:
+        - regex: 'name=1337'
+
+---
+
+schema_version: 2
+
+rules:
+  - description: Test match header regex
+    domains:
+      - test
+    matches:
+      all:
+        - paths:
+            exact:
+              - '/header/regex'
+        - header:
+            field: field
+            regex:
+              - 'm[uU]st_have_(yeah|ooo)!{3,4}'
+    actions:
+      synthetic_response: 'match_header_regex'
+
+tests:
+  - name: Test match header regex
+    request:
+      url: 'https://test/header/regex'
+      headers:
+        - field: field
+          value: 'mUst_have_ooo!!!'
+    expect:
+      status: 200
+      body:
+        - regex: 'match_header_regex'
+
+  - name: Test match header regex wrong
+    request:
+      url: 'https://test/header/regex'
+      headers:
+        - field: field
+          value: 'must_have_yeah!!'
+    expect:  # domain_default backend
+      status: 200
+      body:
+        - regex: 'name=1337'
+
+---
+
+schema_version: 2
+
+rules:
+  - description: Test match header field exists
+    domains:
+      - test
+    matches:
+      all:
+        - paths:
+            exact:
+              - '/header/exists'
+        - header:
+            field: field
+            exists: True
+    actions:
+      synthetic_response: 'match_header_exists'
+
+tests:
+  - name: Test match header field exists
+    request:
+      url: 'https://test/header/exists'
+      headers:
+        - field: field
+          value: is_here
+    expect:
+      status: 200
+      body:
+        - regex: 'match_header_exists'
+
+  - name: Test match header field exists with empty value
+    request:
+      url: 'https://test/header/exists'
+      headers:
+        - field: field
+          value: ''
+    expect:
+      status: 200
+      body:
+        - regex: 'match_header_exists'
+
+  - name: Test match header field does not exist
+    request:
+      url: 'https://test/header/exists'
+      headers:
+        - field: some_other_field
+          value: exists_but_no_care_was_given_by_ORM
+    expect:  # domain_default backend
+      status: 200
+      body:
+        - regex: 'name=1337'
