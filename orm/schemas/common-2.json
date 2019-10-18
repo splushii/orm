@@ -448,7 +448,11 @@
       "type": "object",
       "properties": {
         "method": {"type": "string", "format": "http-method"},
-        "url": {"type": "string", "format": "uri"}
+        "url": {"type": "string", "format": "uri"},
+        "headers": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/header"}
+        }
       },
       "required": ["url"],
       "additionalProperties": false
