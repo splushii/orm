@@ -430,8 +430,6 @@ def get_all_match_fsms(match_tree, worker_pool=None):
                 fsms[match_type][key] = get_match_fsm_HEADER(
                     match_tree, match_type, key, worker_pool=worker_pool
                 )
-        print("yeah: {}".format(str(keys)))
-        print("coolio: {}".format(str(fsms[match_type])))
     return fsms
 
 
@@ -444,7 +442,10 @@ def get_match_type_keys(match_tree, match_type):
                 if data is not None:
                     if data_list_out is None:
                         data_list_out = []
-                    data_list_out.append(data)
+                    if isinstance(data, list):
+                        data_list_out += [item for item in data]
+                    else:
+                        data_list_out.append(data)
         return data_list_out
 
     def handle_match(src, fun, inp, negate):
@@ -614,18 +615,29 @@ def get_match_fsm(match_tree, match_type, worker_pool=None):
 
 
 def fsms_collide(one, two):
-    # TODO: Put the domain under fsms too
-    print(
-        "one keys: {}\ntwo keys: {}".format(
-            one["fsms"]["header"].keys(), two["fsms"]["header"].keys()
-        )
-    )
     return (
-        one["domain"] == two["domain"]
-        and not one["fsms"]["path"].isdisjoint(two["fsms"]["path"])
+        # one["domain"] == two["domain"]
+        not one["fsms"]["path"].isdisjoint(two["fsms"]["path"])
         and not one["fsms"]["query"].isdisjoint(two["fsms"]["query"])
         and not one["fsms"]["method"].isdisjoint(two["fsms"]["method"])
+        and fsms_collide_headers(one["fsms"]["header"], two["fsms"]["header"])
     )
+
+
+def fsms_collide_headers(header_fsms_one, header_fsms_two):
+    all_fields = set(list(header_fsms_one.keys()) + list(header_fsms_two.keys()))
+    # There is a collision iff all header spaces collide
+    for field in all_fields:
+        if field not in header_fsms_one or field not in header_fsms_two:
+            # There is a collision
+            # Continue checking
+            continue
+        if header_fsms_one[field].isdisjoint(header_fsms_two[field]):
+            # There is a header space which does not contain a collision
+            # Then there is no collision
+            return False
+    # There are only collisions
+    return True
 
 
 def validate_constraints_domain_default(domain_rules):
@@ -683,7 +695,7 @@ def validate_constraints_rule_collision(domain_rules, cache_path=None):
             if rule.get("domain_default", False):
                 continue
             matches = rule["matches"]
-            match_tree = parser.get_match_tree(matches)
+            match_tree = parser.get_match_tree(matches, domain=domain)
             fsm_cache_key = domain + str(match_tree)
             if fsm_cache_key in fsm_cache:
                 fsm_cache_hits[fsm_cache_key] = fsm_cache.pop(fsm_cache_key)

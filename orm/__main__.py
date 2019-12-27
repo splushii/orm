@@ -2,6 +2,7 @@
 
 import sys
 import argparse
+import pprint
 
 import orm.parser as parser
 import orm.validator as validator
@@ -101,6 +102,7 @@ def main():
         defaults = parsed_globals.get("defaults", None)
 
     parsed_rules = parser.parse_rules(yml_files=yml_files, defaults=defaults)
+    pprint.pprint(parsed_rules)
     domain_rules = parsed_rules["rules"]
     tests = parsed_rules["tests"]
 

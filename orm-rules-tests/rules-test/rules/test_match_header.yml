@@ -298,3 +298,25 @@ tests:
       status: 200
       body:
         - regex: 'name=1337'
+
+---
+
+schema_version: 2
+
+rules:
+  - description: Test without domains
+    matches:
+      all:
+        - paths:
+            exact:
+              - '/header/exists'
+        - header:
+            field: Field
+            exists: True
+        - header:
+            not: True
+            field: Host
+            exact:
+              - test
+    actions:
+      synthetic_response: 'match_header_exists'

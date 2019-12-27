@@ -1,12 +1,17 @@
 x Update schema to support header matching (and deprecate domain?)
 x Update schema to support specifying headers for ORM tests
+x Update schema to make domains optional (unless domain_default is used)
 x Deployment tests
-x Implement changes in parser and varnish render
+x Implement changes in parser
 x Add support for specifying headers in runtests.py
-- Collision check header matches in validator
-  - Add domain to collision checking
-  - Do not split divide collision checking on domain
-  - Handle domain default collision checking
+x Collision check header matches in validator
+  x Add domain as Host header match for collision checking
+  x Do not split divide collision checking on domain (was not needed)
+  x Handle domain default collision checking (was not needed)
+x Normalize header fields (because they are case insensitive)
+- Normalize Host header values (because they are case insensitive)
+- Implement changes in varnish render
+  - Continue to split rules domain if domains is set. Put all rules without domains set after that.
 - Unit tests
   - parser.py:parse_match_keyed_values
   - rendervarnish.py:make_match_header

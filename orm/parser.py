@@ -99,8 +99,13 @@ def parse_match_keyed_values(keyed_values_config, value_type, value_key):
     ignore_case = has_ignore_case(keyed_values_config)
     for match_function in match_functions:
         if match_function in keyed_values_config:
+            key_value = keyed_values_config[value_key]
+            if value_type == "header":
+                # HTTP header fields are case-insensitive
+                # https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2
+                key_value = key_value.lower()
             if match_function == "exists":
-                inp = {value_key: keyed_values_config[value_key]}
+                inp = {value_key: key_value}
                 if ignore_case:
                     inp["ignore_case"] = ignore_case
                 expr_list.append(
@@ -108,7 +113,7 @@ def parse_match_keyed_values(keyed_values_config, value_type, value_key):
                 )
             else:
                 for value in keyed_values_config[match_function]:
-                    inp = {value_key: keyed_values_config[value_key], "value": value}
+                    inp = {value_key: key_value, "value": value}
                     if ignore_case:
                         inp["ignore_case"] = ignore_case
                     expr_list.append(
@@ -133,7 +138,11 @@ def parse_match_binary_operator(operator, expressions):
         )
     expr_list = []
     for expr in expressions:
-        if "paths" in expr:
+        if "all" in expr:
+            expr_list.append(parse_match_binary_operator("all", expr["all"]))
+        elif "any" in expr:
+            expr_list.append(parse_match_binary_operator("any", expr["any"]))
+        elif "paths" in expr:
             expr_list.append(parse_match_values(expr["paths"], "path"))
         elif "query" in expr:
             expr_list.append(parse_match_values(expr["query"], "query"))
@@ -148,18 +157,6 @@ def parse_match_binary_operator(operator, expressions):
                 "ERROR: unhandled key in: " + str(expr.keys())
             )
     return {op: expr_list}
-
-
-def parse_match_domains(domains):
-    matches = list(
-        map(
-            lambda domain: {
-                "match": {"source": "domain", "function": "exact", "input": domain}
-            },
-            domains,
-        )
-    )
-    return {"or": matches}
 
 
 def minify_match_tree(match_tree):
@@ -180,10 +177,16 @@ def minify_match_tree(match_tree):
     return mini_tree
 
 
-def create_match_tree(matches, domains=None):
+def create_match_tree(matches, domain=None):
     expr_list = []
-    if domains:
-        expr_list.append(parse_match_domains(domains))
+    if domain:
+        matches = {"all": [
+            {"header": {
+                "field": "host",
+                "exact": [domain]
+            }},
+            matches
+        ]}
     for key, value in matches.items():
         if key in ["all", "any"]:
             expr_list.append(parse_match_binary_operator(key, value))
@@ -192,8 +195,8 @@ def create_match_tree(matches, domains=None):
     return {"and": expr_list}
 
 
-def get_match_tree(matches, domains=None):
-    return minify_match_tree(create_match_tree(matches, domains=domains))
+def get_match_tree(matches, domain=None):
+    return minify_match_tree(create_match_tree(matches, domain=domain))
 
 
 def default_handle_condition_list(data_list_in, op, negate):
@@ -280,9 +283,14 @@ def parse_document_v2(doc):
         del doc["schema_version"]
     parsed_doc = {"rules": {}, "tests": doc.get("tests", [])}
     for rule in doc.get("rules"):
-        for domain in rule.get("domains", []):
-            parsed_doc["rules"].setdefault(domain, [])
-            parsed_doc["rules"][domain].append(rule)
+        domains = rule.get("domains", [])
+        if not domains:
+            parsed_doc["rules"].setdefault("", [])
+            parsed_doc["rules"][""].append(rule)
+        else:
+            for domain in domains:
+                parsed_doc["rules"].setdefault(domain, [])
+                parsed_doc["rules"][domain].append(rule)
     return parsed_doc
 
 

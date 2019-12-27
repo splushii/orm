@@ -350,6 +350,16 @@
         "type": "object",
         "oneOf": [{
           "properties": {
+            "all": {"$ref": "#/definitions/boolean_operator"}
+          },
+          "additionalProperties": false
+        }, {
+          "properties": {
+            "any": {"$ref": "#/definitions/boolean_operator"}
+          },
+          "additionalProperties": false
+        }, {
+          "properties": {
             "paths": {"$ref": "#/definitions/match_path"}
           },
           "additionalProperties": false
@@ -426,11 +436,11 @@
         "matches": {"$ref": "#/definitions/matches"},
         "actions": {"$ref": "#/definitions/actions"}
       },
-      "required": ["domains", "description", "actions"],
+      "required": ["description", "actions"],
       "oneOf": [{
         "required": ["matches"]
       }, {
-        "required": ["domain_default"]
+        "required": ["domains", "domain_default"]
       }],
       "additionalProperties": false
     },
